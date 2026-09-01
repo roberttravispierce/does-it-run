@@ -9,7 +9,13 @@ module DoesItRun
       def blocked? = status == :blocked
       def skipped? = status == :skipped
 
-      def excerpt(limit = 400)
+# When a step is blocked on a missing binary, name it. "blocked" on its own
+# tells a maintainer nothing they can act on.
+def missing_tool
+  (stderr.to_s + stdout.to_s)[/(?:^|\W)([\w.\/-]+): (?:not found|command not found)/, 1]
+end
+
+def excerpt(limit = 400)
         text = stderr.to_s.strip.empty? ? stdout.to_s : stderr.to_s
         text.strip[0, limit]
       end
@@ -49,7 +55,8 @@ module DoesItRun
 
       results.each do |r|
         mark = { ok: "PASS", failed: "FAIL", blocked: "BLOCKED", skipped: "skipped" }.fetch(r.status)
-        lines << "- `#{r.step.command}` — **#{mark}**#{r.ok? ? " (#{r.seconds}s)" : ""}"
+        detail = r.blocked? && r.missing_tool ? " — needs `#{r.missing_tool}`" : ""
+        lines << "- `#{r.step.command}` — **#{mark}**#{detail}#{r.ok? ? " (#{r.seconds}s)" : ""}"
         lines << "  ```\n  #{r.excerpt.lines.first(6).join("  ").rstrip}\n  ```" if r.failed? || r.blocked?
       end
 

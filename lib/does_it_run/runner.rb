@@ -15,7 +15,14 @@ module DoesItRun
     # Signals that a step failed for want of a credential or a human, rather
     # than because the project is broken. Reporting these as failures would be
     # both wrong and the fastest way to lose a reader's trust.
-    BLOCKED_PATTERNS = [
+# A command the machine does not have is a prerequisite the docs did not
+# state — not a broken instruction. Reporting "python: not found" as a
+# FAILURE against a widely-used project makes the tool look wrong even when
+# it is literally correct, and one wrong-looking verdict costs more trust
+# than a dozen right ones earn.
+MISSING_TOOL = /(?:^|\W)([\w.\/-]+): (?:not found|command not found)|command not found: (\S+)/
+
+BLOCKED_PATTERNS = [
       /\bAPI[_ ]?KEY\b.*(?:not set|missing|required|unset)/i,
       /(?:authentication|authorization|credentials?|unauthorized|permission denied \(publickey\))/i,
       /\b(?:401|403)\b.*(?:unauthorized|forbidden)/i,
@@ -99,6 +106,8 @@ module DoesItRun
       return :ok if exit_code.zero?
 
       text = "#{stdout}\n#{stderr}"
+      return :blocked if text.match?(MISSING_TOOL)
+
       BLOCKED_PATTERNS.any? { |re| text.match?(re) } ? :blocked : :failed
     end
 
