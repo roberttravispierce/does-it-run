@@ -8,7 +8,7 @@ require_relative "solari/sandbox"
 # behind one API key.
 #
 # Solari ships SDKs for TypeScript, Python, Go, Rust, and C++. This one exists
-# because Coldstart is written in Ruby.
+# because Does It Run is written in Ruby.
 module Solari
   VERSION = "0.1.0"
 

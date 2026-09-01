@@ -23,7 +23,7 @@ end
 started = Time.now
 
 Solari.sandbox(cpu: 1, mem_mb: 1024, timeout_ms: 120_000,
-               metadata: { project: "coldstart", example: "sandbox_lifecycle" }) do |sandbox|
+               metadata: { project: "does-it-run", example: "sandbox_lifecycle" }) do |sandbox|
   puts "created   #{sandbox.kind} in #{(Time.now - started).round(2)}s"
 
   result = sandbox.exec("echo", "argv form works")
@@ -38,8 +38,8 @@ Solari.sandbox(cpu: 1, mem_mb: 1024, timeout_ms: 120_000,
   listing = sandbox.sh("ls -la / | head -3")
   puts "sh        exit=#{listing.exit_code} lines=#{listing.stdout.lines.size}"
 
-  sandbox.sh("mkdir -p /tmp/coldstart && printf 'written-in-vm' > /tmp/coldstart/proof.txt")
-  echoed = sandbox.sh("cat /tmp/coldstart/proof.txt")
+  sandbox.sh("mkdir -p /tmp/does-it-run && printf 'written-in-vm' > /tmp/does-it-run/proof.txt")
+  echoed = sandbox.sh("cat /tmp/does-it-run/proof.txt")
   puts "file      round-trip=#{echoed.stdout.inspect}"
 
   puts "guest os  #{sandbox.sh('. /etc/os-release; echo $PRETTY_NAME').stdout.strip}"
