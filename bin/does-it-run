@@ -39,7 +39,14 @@ abort("no such README: #{options[:readme]}") unless File.exist?(options[:readme]
 config = DoesItRun::Config.load
 name = options[:name] || config.name || File.basename(Dir.pwd)
 options[:readme] = config.readme if options[:readme] == "README.md" && config.readme
-recipe = DoesItRun::Recipe.from_readme(File.read(options[:readme]), name: name)
+recipe =
+  if config.steps
+    # Declared steps win over extraction: the maintainer knows what their
+    # quickstart is, and stating it removes every guess this tool would make.
+    DoesItRun::Recipe.new(name: name, steps: config.steps.map { |c| DoesItRun::Recipe::Step.new(command: c, source_line: nil) })
+  else
+    DoesItRun::Recipe.from_readme(File.read(options[:readme]), name: name)
+  end
 
 if recipe.empty?
   warn "No runnable steps found in #{options[:readme]}."

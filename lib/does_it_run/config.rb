@@ -22,12 +22,13 @@ module DoesItRun
   class Config
     FILENAME = ".does-it-run.yml"
 
-    attr_reader :name, :setup, :readme
+    attr_reader :name, :setup, :readme, :steps
 
-    def initialize(name: nil, setup: [], readme: "README.md")
+    def initialize(name: nil, setup: [], readme: "README.md", steps: nil)
       @name   = name
       @setup  = Array(setup)
       @readme = readme
+      @steps  = steps && Array(steps)
     end
 
     def self.load(dir = Dir.pwd)
@@ -35,7 +36,8 @@ module DoesItRun
       return new unless File.exist?(path)
 
       data = YAML.load_file(path) || {}
-      new(name: data["name"], setup: data["setup"], readme: data.fetch("readme", "README.md"))
+      new(name: data["name"], setup: data["setup"], readme: data.fetch("readme", "README.md"),
+          steps: data["steps"])
     end
   end
 end

@@ -1,4 +1,3 @@
-# Does It Run checks this project against its own README.
 name: does-it-run
 
 # Ruby is not on a bare Debian image. Installing it is a fact about the machine,
@@ -6,3 +5,9 @@ name: does-it-run
 setup:
   - apt-get update -qq
   - DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ruby
+
+# Declared explicitly rather than extracted. Extraction reads prose and cannot
+# always tell a setup step from a usage example; stating the quickstart removes
+# the guess. Remove this key to check what extraction alone would find.
+steps:
+  - ruby -Ilib examples/sandbox_lifecycle.rb
