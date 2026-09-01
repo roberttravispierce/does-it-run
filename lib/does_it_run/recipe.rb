@@ -33,7 +33,7 @@ module DoesItRun
 
     # Placeholders a human is expected to substitute. Running these verbatim
     # fails for reasons that say nothing about the project.
-    PLACEHOLDER = /<[a-z0-9_ -]+>|YOUR_[A-Z_]+|xxxx|\.\.\./i
+    PLACEHOLDER = /<[a-z0-9_ -]+>|{[a-z0-9_ -]+}|YOUR_[A-Z_]+|xxxx|\.\.\./i
 
     attr_reader :name, :repo, :steps, :template
 
@@ -104,8 +104,16 @@ module DoesItRun
 
         next unless in_block && in_scope
 
-        command = stripped.sub(/\A\s*[$#>]\s+/, "").strip   # strip prompt markers
-        next if NOT_A_COMMAND.any? { |re| command.match?(re) }
+        # Comment check BEFORE prompt stripping. `#` doubles as a root prompt and
+        # as a comment marker, and stripping it first turns "# Install it
+        # generally:" into a command. Comments vastly outnumber root prompts in
+        # READMEs, so `#` is treated as a comment and only `$`/`>` are stripped.
+        # The cost is missing a step written with a root prompt, which is the
+        # safe direction to be wrong in.
+        next if NOT_A_COMMAND.any? { |re| stripped.match?(re) }
+
+        command = stripped.sub(/\A\s*[$>]\s+/, "").strip
+        next if command.empty?
         next if command.match?(PLACEHOLDER)
 
         steps << Step.new(command: command, source_line: number)
