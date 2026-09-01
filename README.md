@@ -28,7 +28,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "0 12 * * 1"
+    - cron: "17 12 * * 1"
 
 permissions:
   contents: write
@@ -94,6 +94,23 @@ with:
   env: |
     MY_API_KEY=${{ secrets.MY_API_KEY }}
 ```
+
+## The badge is dated, on purpose
+
+The badge reads `does it run — yes · 2026-09-01`, not `yes`.
+
+A badge is a static file on a branch. Nothing re-renders it, so if the workflow
+stops running it keeps asserting whatever it last said, indefinitely. And it will
+stop: **GitHub disables scheduled workflows on repositories with no activity for
+60 days.** A dormant repository is both where a quickstart is most likely to have
+rotted and where the check has quietly switched itself off.
+
+So the badge does not claim anything about the present. It reports a date, which
+stays true, and lets you judge whether a check from four months ago still means
+something. `yes` is a promise nobody is keeping. `yes · 2026-09-01` is a fact.
+
+Dynamic expiry would need a server to re-render the badge on request. This has no
+server, and adding one to fix a date string would be the wrong trade.
 
 ## Why it also runs on a schedule
 

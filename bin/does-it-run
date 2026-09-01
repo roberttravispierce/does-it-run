@@ -11,6 +11,7 @@
 require "json"
 require "fileutils"
 require "optparse"
+require "time"
 
 $LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
 require "solari"
@@ -75,6 +76,7 @@ FileUtils.mkdir_p(options[:out])
 File.write(File.join(options[:out], "report.json"), JSON.pretty_generate({
   name: recipe.name,
   verdict: report.verdict,
+  checked_at: Time.now.utc.iso8601,
   seconds: report.seconds,
   counts: report.counts,
   steps: report.results.map do |r|
@@ -85,10 +87,23 @@ File.write(File.join(options[:out], "report.json"), JSON.pretty_generate({
 
 # shields.io endpoint schema — lets a badge render straight from a raw file with
 # nothing hosted anywhere.
+# The badge carries the date it was checked.
+#
+# A static file cannot expire itself: shields renders whatever is on the branch,
+# so if the workflow stops running — and GitHub disables scheduled workflows on
+# repositories with no activity for 60 days — the badge would go on asserting
+# "yes" indefinitely from a run that happened months ago. Dynamic expiry would
+# need a hosted endpoint, which this deliberately does not have.
+#
+# Dating the claim solves it without infrastructure. "yes" is a promise about
+# the present that nothing is keeping. "yes, on 2026-09-01" is a fact that stays
+# true, and a reader can judge for themselves whether it is still worth
+# anything.
+checked = Time.now.utc.strftime("%Y-%m-%d")
 badge = case report.verdict
-        when :passed  then { message: "yes",     color: "brightgreen" }
-        when :blocked then { message: "needs setup", color: "yellow" }
-        else               { message: "no",      color: "red" }
+        when :passed  then { message: "yes · #{checked}",         color: "brightgreen" }
+        when :blocked then { message: "needs setup · #{checked}", color: "yellow" }
+        else               { message: "no · #{checked}",          color: "red" }
         end
 File.write(File.join(options[:out], "badge.json"), JSON.generate({
   schemaVersion: 1,

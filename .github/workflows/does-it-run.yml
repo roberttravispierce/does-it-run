@@ -7,7 +7,7 @@ on:
   # a package disappears, an install script changes. Nothing in this repo has to
   # change for the answer to change, so the check also runs on a schedule.
   schedule:
-    - cron: "0 12 * * 1"
+    - cron: "17 12 * * 1"
   workflow_dispatch:
 
 permissions:
