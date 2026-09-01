@@ -22,13 +22,14 @@ module DoesItRun
   class Config
     FILENAME = ".does-it-run.yml"
 
-    attr_reader :name, :setup, :readme, :steps
+    attr_reader :name, :setup, :readme, :steps, :verify
 
-    def initialize(name: nil, setup: [], readme: "README.md", steps: nil)
+    def initialize(name: nil, setup: [], readme: "README.md", steps: nil, verify: [])
       @name   = name
       @setup  = Array(setup)
       @readme = readme
       @steps  = steps && Array(steps)
+      @verify = Array(verify)
     end
 
 # Fetch the config belonging to a remote repository.
@@ -49,7 +50,7 @@ def self.fetch(clone_url)
 
   data = YAML.safe_load(res.body) || {}
   new(name: data["name"], setup: data["setup"], readme: data.fetch("readme", "README.md"),
-      steps: data["steps"])
+      steps: data["steps"], verify: data["verify"])
 rescue StandardError
   new
 end
@@ -60,7 +61,7 @@ def self.load(dir = Dir.pwd)
 
       data = YAML.load_file(path) || {}
       new(name: data["name"], setup: data["setup"], readme: data.fetch("readme", "README.md"),
-          steps: data["steps"])
+          steps: data["steps"], verify: data["verify"])
     end
   end
 end

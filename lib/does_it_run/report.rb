@@ -3,11 +3,12 @@
 module DoesItRun
   # The evidence trail from one run.
   class Report
-    StepResult = Struct.new(:step, :index, :status, :exit_code, :stdout, :stderr, :seconds, keyword_init: true) do
+    StepResult = Struct.new(:step, :index, :status, :phase, :exit_code, :stdout, :stderr, :seconds, keyword_init: true) do
       def ok?      = status == :ok
       def failed?  = status == :failed
       def blocked? = status == :blocked
       def skipped? = status == :skipped
+      def verify?  = phase == :verify
 
 # When a step is blocked on a missing binary, name it. "blocked" on its own
 # tells a maintainer nothing they can act on.
@@ -47,7 +48,10 @@ def excerpt(limit = 400)
     def to_markdown
       lines = ["## #{recipe.name}", ""]
       lines << case verdict
-               when :passed  then "**Quickstart works.** #{results.size} steps, #{seconds}s on a clean machine."
+               when :passed  then begin
+                                   v = results.count(&:verify?)
+                                   "**Quickstart works.** #{results.size - v} steps#{v.positive? ? " plus #{v} verified" : ""}, #{seconds}s on a clean machine."
+                                 end
                when :failed  then "**Fails at step #{failure.index + 1} of #{results.size}.**"
                else               "**Blocked at step #{blocker.index + 1} of #{results.size}** — needs something the docs do not supply."
                end
@@ -56,7 +60,10 @@ def excerpt(limit = 400)
       results.each do |r|
         mark = { ok: "PASS", failed: "FAIL", blocked: "BLOCKED", skipped: "skipped" }.fetch(r.status)
         detail = r.blocked? && r.missing_tool ? " — needs `#{r.missing_tool}`" : ""
-        lines << "- `#{r.step.command}` — **#{mark}**#{detail}#{r.ok? ? " (#{r.seconds}s)" : ""}"
+        # Verify steps are marked, because "the install worked" and "the thing
+        # works" are different claims and a reader should see which is which.
+        prefix = r.verify? ? "verify " : ""
+        lines << "- #{prefix}`#{r.step.command}` — **#{mark}**#{detail}#{r.ok? ? " (#{r.seconds}s)" : ""}"
         lines << "  ```\n  #{r.excerpt.lines.first(6).join("  ").rstrip}\n  ```" if r.failed? || r.blocked?
       end
 

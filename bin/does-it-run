@@ -62,7 +62,7 @@ setup = []
 setup << "git clone --depth 1 #{options[:clone]} ." if options[:clone]
 setup.concat(config.setup)
 begin
-  report = DoesItRun::Runner.new(recipe, envs: options[:envs], setup: setup).run
+  report = DoesItRun::Runner.new(recipe, envs: options[:envs], setup: setup, verify: config.verify).run
 rescue DoesItRun::SetupError => e
   warn "Could not prepare the machine: #{e.message}"
   exit 2
@@ -87,11 +87,16 @@ File.write(File.join(options[:out], "report.json"), JSON.pretty_generate({
 # nothing hosted anywhere.
 badge = case report.verdict
         when :passed  then { message: "yes",     color: "brightgreen" }
-        when :blocked then { message: "blocked", color: "yellow" }
+        when :blocked then { message: "needs setup", color: "yellow" }
         else               { message: "no",      color: "red" }
         end
 File.write(File.join(options[:out], "badge.json"), JSON.generate({
-  schemaVersion: 1, label: "does it run", **badge
+  schemaVersion: 1,
+  label: "does it run",
+  # Shields caches endpoint fetches. 300 is their minimum, and it is the
+  # difference between a verdict flip showing up in minutes rather than hours.
+  cacheSeconds: 300,
+  **badge
 }))
 
 warn "\nwrote #{options[:out]}/report.json and #{options[:out]}/badge.json"

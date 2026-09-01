@@ -8,6 +8,13 @@ setup:
 
 # Declared explicitly rather than extracted. Extraction reads prose and cannot
 # always tell a setup step from a usage example; stating the quickstart removes
-# the guess. Remove this key to check what extraction alone would find.
+# the guess.
 steps:
   - ruby -Ilib examples/sandbox_lifecycle.rb
+
+# Verify answers a different question from the steps: not "did the documented
+# commands succeed" but "does the thing they installed actually work". Without
+# it, a green badge can mean nothing more than a download finished.
+verify:
+  - ruby -Ilib bin/does-it-run --help
+  - ruby -Ilib -e 'require "solari"; abort("client did not load") unless Solari::VERSION'
