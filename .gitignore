@@ -1,0 +1,19 @@
+# Secrets — never committed.
+.env
+.env.local
+*.pem
+*.key
+
+# Ruby
+/.bundle/
+/vendor/bundle/
+/log/*.log
+/tmp/
+/coverage/
+
+# Run artifacts (screenshots, replays, reports are regenerable)
+/runs/
+/artifacts/
+
+# macOS
+.DS_Store
