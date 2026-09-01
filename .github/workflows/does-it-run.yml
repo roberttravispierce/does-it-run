@@ -1,0 +1,29 @@
+name: Does It Run
+
+on:
+  push:
+    branches: [main]
+  # Quickstarts rot from the outside in: a dependency ships a breaking release,
+  # a package disappears, an install script changes. Nothing in this repo has to
+  # change for the answer to change, so the check also runs on a schedule.
+  schedule:
+    - cron: "0 12 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Does it run?
+        uses: ./
+        with:
+          solari-api-key: ${{ secrets.SOLARI_API_KEY }}
+          # This project's own quickstart genuinely needs a key, so it gets one.
+          # Without this the honest verdict would be "blocked", not "no".
+          env: |
+            SOLARI_API_KEY=${{ secrets.SOLARI_API_KEY }}

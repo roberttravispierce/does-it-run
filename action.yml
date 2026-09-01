@@ -1,0 +1,113 @@
+name: "Does It Run"
+description: "Run your README's quickstart on a clean machine and publish a badge saying whether it still works."
+author: "Robert Travis Pierce"
+
+branding:
+  icon: "check-circle"
+  color: "green"
+
+inputs:
+  solari-api-key:
+    description: "Solari API key. Store it as a repository secret."
+    required: true
+  github-token:
+    description: "Token used to publish the badge. Defaults to the workflow token."
+    required: false
+    default: ${{ github.token }}
+  readme:
+    description: "File to read the documented steps from."
+    required: false
+    default: "README.md"
+  env:
+    description: "Extra environment for the VM, one KEY=VALUE per line. Use this for keys the quickstart legitimately needs."
+    required: false
+    default: ""
+  publish-badge:
+    description: "Publish badge.json to a branch so shields.io can render it. Needs contents:write."
+    required: false
+    default: "true"
+  badge-branch:
+    description: "Branch the badge is published to."
+    required: false
+    default: "does-it-run"
+  strict:
+    description: "Fail the workflow when the quickstart does not pass."
+    required: false
+    default: "false"
+
+outputs:
+  verdict:
+    description: "passed, failed, or blocked."
+    value: ${{ steps.check.outputs.verdict }}
+  message:
+    description: "The badge text: yes, no, or blocked."
+    value: ${{ steps.check.outputs.message }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check the quickstart on a clean machine
+      id: check
+      shell: bash
+      env:
+        SOLARI_API_KEY: ${{ inputs.solari-api-key }}
+        INPUT_ENV: ${{ inputs.env }}
+        INPUT_README: ${{ inputs.readme }}
+        INPUT_STRICT: ${{ inputs.strict }}
+      run: |
+        set -euo pipefail
+
+        args=(--readme "$INPUT_README"
+              --name "${GITHUB_REPOSITORY##*/}"
+              --clone "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+              --out "${RUNNER_TEMP}/does-it-run")
+
+        # Extra env arrives as KEY=VALUE lines so a quickstart that genuinely
+        # needs a credential can receive one instead of reporting "blocked".
+        while IFS= read -r line; do
+          [ -n "$line" ] && args+=(--env "$line")
+        done <<< "$INPUT_ENV"
+
+        [ "$INPUT_STRICT" = "true" ] && args+=(--strict)
+
+        ruby "${GITHUB_ACTION_PATH}/bin/does-it-run" "${args[@]}" | tee "${RUNNER_TEMP}/summary.md"
+
+        # Surface the result on the run itself, not only in the log.
+        cat "${RUNNER_TEMP}/summary.md" >> "${GITHUB_STEP_SUMMARY}"
+
+    - name: Publish the badge
+      if: ${{ inputs.publish-badge == 'true' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        BADGE_BRANCH: ${{ inputs.badge-branch }}
+      run: |
+        set -euo pipefail
+        badge="${RUNNER_TEMP}/does-it-run/badge.json"
+        [ -f "$badge" ] || { echo "no badge to publish"; exit 0; }
+
+        # Published through the REST API rather than a git push. gh reads the
+        # token from the environment, so it never appears in a remote URL, in
+        # .git/config, or in argv — all of which get echoed by tools on failure.
+        repo="$GITHUB_REPOSITORY"
+        message="$(ruby -rjson -e 'print JSON.parse(File.read(ARGV[0]))["message"]' "$badge")"
+        content="$(base64 -w0 < "$badge" 2>/dev/null || base64 < "$badge" | tr -d '\n')"
+
+        # The badge lives on its own branch so a status change never touches your
+        # default branch or re-triggers your other workflows.
+        if ! gh api "repos/${repo}/git/refs/heads/${BADGE_BRANCH}" >/dev/null 2>&1; then
+          gh api --method POST "repos/${repo}/git/refs" \
+            -f ref="refs/heads/${BADGE_BRANCH}" -f sha="${GITHUB_SHA}" >/dev/null
+          echo "created branch ${BADGE_BRANCH}"
+        fi
+
+        existing="$(gh api "repos/${repo}/contents/badge.json?ref=${BADGE_BRANCH}" --jq .sha 2>/dev/null || true)"
+
+        put=(--method PUT "repos/${repo}/contents/badge.json"
+             -f message="does-it-run: ${message}"
+             -f content="${content}"
+             -f branch="${BADGE_BRANCH}")
+        [ -n "$existing" ] && put+=(-f sha="${existing}")
+
+        gh api "${put[@]}" >/dev/null
+        echo "badge published to ${BADGE_BRANCH}: ${message}"

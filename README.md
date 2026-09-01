@@ -1,5 +1,7 @@
 # Does It Run
 
+[![Does It Run](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Froberttravispierce%2Fdoes-it-run%2Fdoes-it-run%2Fbadge.json)](https://github.com/roberttravispierce/does-it-run/actions/workflows/does-it-run.yml)
+
 **Your quickstart worked the day you wrote it. Does it still work today?**
 
 Setup instructions rot silently. They are written once, on a machine that already
@@ -14,6 +16,74 @@ push, and gives you a badge that says whether it still works.
 ```markdown
 ![Does It Run](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/OWNER/REPO/does-it-run/badge.json)
 ```
+
+## Use it on your repo
+
+Add the workflow:
+
+```yaml
+# .github/workflows/does-it-run.yml
+name: Does It Run
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 12 * * 1"
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: roberttravispierce/does-it-run@main
+        with:
+          solari-api-key: ${{ secrets.SOLARI_API_KEY }}
+```
+
+Then put the badge in your README, replacing `OWNER/REPO`:
+
+```markdown
+![Does It Run](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/OWNER/REPO/does-it-run/badge.json)
+```
+
+The badge is published to a branch of your own repo, so nothing is hosted
+anywhere and no account is needed beyond a Solari key.
+
+### If your project needs a toolchain
+
+A bare machine has `git`, `curl`, `python3`, `node`, `npm`, `make` and `gcc` —
+and nothing else. Declare what yours needs in `.does-it-run.yml`:
+
+```yaml
+setup:
+  - apt-get update -qq
+  - apt-get install -y ruby
+```
+
+Setup runs before the graded steps and is excluded from the verdict. "This
+machine had no compiler" is a fact about the machine; "your README never said
+you need one" is a finding.
+
+### If your quickstart needs a key
+
+Pass it through, or every run reports `blocked`:
+
+```yaml
+with:
+  solari-api-key: ${{ secrets.SOLARI_API_KEY }}
+  env: |
+    MY_API_KEY=${{ secrets.MY_API_KEY }}
+```
+
+## Why it also runs on a schedule
+
+Quickstarts rot from the outside in. A dependency ships a breaking release, a
+package is renamed, an install script changes upstream — and nothing in your
+repository changed. A push-triggered check would never notice. The weekly run
+is what catches the world moving underneath you.
 
 ## Why a clean machine
 
@@ -62,7 +132,7 @@ Built in the open, and honest about where it is:
 - [x] Ruby client for the Solari API — no dependencies, stdlib only
 - [x] README step extraction
 - [x] Clean-room runner with working-directory continuity and three-way classification
-- [ ] GitHub Action and badge output
+- [x] GitHub Action and badge output
 - [ ] Verified against real repositories
 
 ## The Ruby client
