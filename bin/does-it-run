@@ -36,7 +36,9 @@ end.parse!
 
 abort("no such README: #{options[:readme]}") unless File.exist?(options[:readme])
 
-config = DoesItRun::Config.load
+# When checking a remote repo, its config comes from that repo. Only fall back
+# to the working directory when we are checking the checkout we are standing in.
+config = options[:clone] ? DoesItRun::Config.fetch(options[:clone]) : DoesItRun::Config.load
 name = options[:name] || config.name || File.basename(Dir.pwd)
 options[:readme] = config.readme if options[:readme] == "README.md" && config.readme
 recipe =

@@ -31,7 +31,30 @@ module DoesItRun
       @steps  = steps && Array(steps)
     end
 
-    def self.load(dir = Dir.pwd)
+# Fetch the config belonging to a remote repository.
+#
+# This exists because reading .does-it-run.yml from the working directory is
+# right in CI, where the repo under test IS the checkout, and badly wrong
+# when checking someone else's repo from a laptop: the local config silently
+# applies to a project that never asked for it. Config belongs to the
+# project being checked.
+def self.fetch(clone_url)
+  require "net/http"
+  m = clone_url.to_s.match(%r{github\.com/([^/]+)/([^/.]+)})
+  return new unless m
+
+  uri = URI("https://raw.githubusercontent.com/#{m[1]}/#{m[2]}/HEAD/#{FILENAME}")
+  res = Net::HTTP.get_response(uri)
+  return new unless res.is_a?(Net::HTTPSuccess)
+
+  data = YAML.safe_load(res.body) || {}
+  new(name: data["name"], setup: data["setup"], readme: data.fetch("readme", "README.md"),
+      steps: data["steps"])
+rescue StandardError
+  new
+end
+
+def self.load(dir = Dir.pwd)
       path = File.join(dir, FILENAME)
       return new unless File.exist?(path)
 
