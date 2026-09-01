@@ -16,7 +16,7 @@ module Solari
   class Sandbox
     # Result of one command. `success?` reads better than `exit_code.zero?` at
     # the call sites that matter.
-    Result = Data.define(:exit_code, :stdout, :stderr) do
+    Result = Struct.new(:exit_code, :stdout, :stderr, keyword_init: true) do
       def success? = exit_code.zero?
       def output   = (stdout.to_s + stderr.to_s)
     end
