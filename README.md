@@ -113,6 +113,32 @@ That is affordable because of [Solari](https://getsolari.com): a VM restores fro
 a memory snapshot in about a second, so a fresh machine per run costs a fraction
 of a cent instead of a build queue.
 
+### Why not just run it on the CI runner?
+
+It is the obvious question, since a GitHub Actions runner is already ephemeral,
+already free, and already destroyed after every job. It does not work, and the
+reason is the whole point of this tool.
+
+**A CI runner is the opposite of bare.** `ubuntu-latest` ships with Ruby,
+Python, Node, Go, .NET, Docker and a large toolchain preinstalled, because that
+is what makes it useful for building things. Run a quickstart there and it
+passes for reasons that have nothing to do with the quickstart.
+
+This repository is the worked example. Its README told people to run a Ruby
+command and never said Ruby was required — a real defect, found on the first
+run against a bare image. **On a runner that defect is invisible**, because Ruby
+is already installed. The check would have gone green and taught us nothing.
+
+A runner gives you ephemerality without emptiness, and emptiness is the half
+that matters. What is needed is a machine with nothing on it, available in about
+a second, cheap enough to throw away on every push — which is what a snapshot-
+booted microVM is for.
+
+The honest cost of that: **using this requires a Solari account.** For a badge
+that is a heavier ask than `build passing`, and it is the main thing limiting
+who will install it. A local Docker backend would remove the barrier at the cost
+of being slower and not genuinely bare; it is not built.
+
 ## How it works
 
 1. **Read the README** — pull the shell commands out of the fenced blocks, the
