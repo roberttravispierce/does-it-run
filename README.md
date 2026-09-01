@@ -67,6 +67,23 @@ Setup runs before the graded steps and is excluded from the verdict. "This
 machine had no compiler" is a fact about the machine; "your README never said
 you need one" is a finding.
 
+### Proving it actually works
+
+Setup finishing is not the same as the thing working. `npm install` builds
+nothing and runs nothing, so a green badge that rests only on documented steps
+is weaker than it looks. Add a smoke command:
+
+```yaml
+steps:
+  - npm install @sindresorhus/slugify
+verify:
+  - node -e "require('@sindresorhus/slugify')"
+```
+
+Verify runs after the graded steps and is marked separately in the report,
+because "the install worked" and "the thing works" are different claims and a
+reader should see which one the badge rests on.
+
 ### If your quickstart needs a key
 
 Pass it through, or every run reports `blocked`:
@@ -120,7 +137,7 @@ projects that are fine, and nobody reads it twice.
 | --- | --- |
 | **passed** | The command ran and exited zero on a machine with nothing on it. |
 | **failed** | It ran and did not work. This is the finding. |
-| **blocked** | It needs a key, a prompt, or something unstated. Also a finding. |
+| **needs setup** | It needs a key, a prompt, or a tool the machine did not have. Also a finding. |
 
 A failing step halts the run, because everything after it was written assuming
 it succeeded.
@@ -133,7 +150,7 @@ Built in the open, and honest about where it is:
 - [x] README step extraction
 - [x] Clean-room runner with working-directory continuity and three-way classification
 - [x] GitHub Action and badge output
-- [ ] Verified against real repositories
+- [x] Verified against real repositories — 14 surveyed; see Design notes
 
 ## The Ruby client
 
