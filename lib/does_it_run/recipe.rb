@@ -9,7 +9,7 @@ module DoesItRun
   # the interesting path: it means DoesItRun runs what the project actually
   # tells people to run, not a curated version of it.
   class Recipe
-    Step = Data.define(:command, :source_line) do
+    Step = Struct.new(:command, :source_line, keyword_init: true) do
       def to_s = command
     end
 

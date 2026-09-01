@@ -1,0 +1,98 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+#
+# Does It Run — execute a project's documented quickstart on a clean machine.
+#
+#   does-it-run [--readme PATH] [--name NAME] [--out DIR] [--env K=V]... [--strict]
+#
+# Writes report.json (full evidence) and badge.json (shields.io endpoint) into
+# --out, prints a Markdown summary, and exits non-zero only under --strict.
+
+require "json"
+require "fileutils"
+require "optparse"
+
+$LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
+require "solari"
+require "does_it_run/config"
+require "does_it_run/recipe"
+require "does_it_run/runner"
+
+options = { readme: "README.md", out: ".does-it-run", envs: {}, strict: false, name: nil, clone: nil }
+
+OptionParser.new do |o|
+  o.banner = "Usage: does-it-run [options]"
+  o.on("--readme PATH", "README to read steps from (default: README.md)") { |v| options[:readme] = v }
+  o.on("--name NAME",   "Project name for the report")                    { |v| options[:name] = v }
+  o.on("--out DIR",     "Output directory (default: .does-it-run)")       { |v| options[:out] = v }
+  o.on("--env K=V",     "Env var to inject into the VM (repeatable)") do |v|
+    k, val = v.split("=", 2)
+    options[:envs][k] = val.to_s
+  end
+  o.on("--clone URL", "git clone URL into the VM before running the steps") { |v| options[:clone] = v }
+  o.on("--strict", "Exit non-zero when the quickstart does not pass") { options[:strict] = true }
+  o.on("-h", "--help") { puts o; exit 0 }
+end.parse!
+
+abort("no such README: #{options[:readme]}") unless File.exist?(options[:readme])
+
+config = DoesItRun::Config.load
+name = options[:name] || config.name || File.basename(Dir.pwd)
+options[:readme] = config.readme if options[:readme] == "README.md" && config.readme
+recipe = DoesItRun::Recipe.from_readme(File.read(options[:readme]), name: name)
+
+if recipe.empty?
+  warn "No runnable steps found in #{options[:readme]}."
+  warn "Steps are read from fenced ```bash / ```sh / ```console blocks."
+  exit(options[:strict] ? 1 : 0)
+end
+
+warn "Running #{recipe.steps.size} documented steps on a clean machine..."
+# Clone first so a project config committed in the repo is what gets used.
+setup = []
+setup << "git clone --depth 1 #{options[:clone]} ." if options[:clone]
+setup.concat(config.setup)
+begin
+  report = DoesItRun::Runner.new(recipe, envs: options[:envs], setup: setup).run
+rescue DoesItRun::SetupError => e
+  warn "Could not prepare the machine: #{e.message}"
+  exit 2
+end
+
+puts report.to_markdown
+
+FileUtils.mkdir_p(options[:out])
+
+File.write(File.join(options[:out], "report.json"), JSON.pretty_generate({
+  name: recipe.name,
+  verdict: report.verdict,
+  seconds: report.seconds,
+  counts: report.counts,
+  steps: report.results.map do |r|
+    { index: r.index, command: r.step.command, status: r.status,
+      exit_code: r.exit_code, seconds: r.seconds, excerpt: r.excerpt(600) }
+  end
+}))
+
+# shields.io endpoint schema — lets a badge render straight from a raw file with
+# nothing hosted anywhere.
+badge = case report.verdict
+        when :passed  then { message: "yes",     color: "brightgreen" }
+        when :blocked then { message: "blocked", color: "yellow" }
+        else               { message: "no",      color: "red" }
+        end
+File.write(File.join(options[:out], "badge.json"), JSON.generate({
+  schemaVersion: 1, label: "does it run", **badge
+}))
+
+warn "\nwrote #{options[:out]}/report.json and #{options[:out]}/badge.json"
+
+# GitHub Actions step outputs, when running inside one.
+if (summary = ENV["GITHUB_OUTPUT"])
+  File.open(summary, "a") do |f|
+    f.puts "verdict=#{report.verdict}"
+    f.puts "message=#{badge[:message]}"
+  end
+end
+
+exit(options[:strict] && !report.passed? ? 1 : 0)

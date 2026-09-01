@@ -3,7 +3,7 @@
 module DoesItRun
   # The evidence trail from one run.
   class Report
-    StepResult = Data.define(:step, :index, :status, :exit_code, :stdout, :stderr, :seconds) do
+    StepResult = Struct.new(:step, :index, :status, :exit_code, :stdout, :stderr, :seconds, keyword_init: true) do
       def ok?      = status == :ok
       def failed?  = status == :failed
       def blocked? = status == :blocked

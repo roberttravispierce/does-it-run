@@ -6,6 +6,8 @@ require_relative "report"
 
 module DoesItRun
   # Executes a recipe on a clean machine, one step at a time.
+  SetupError = Class.new(StandardError)
+
   class Runner
     CWD_MARKER = "__DOES_IT_RUN_CWD__"
     START_DIR  = "/root/work"
@@ -21,12 +23,14 @@ module DoesItRun
       /environment variable .* (?:is )?(?:not set|required)/i
     ].freeze
 
-    def initialize(recipe, client: Solari::Client.new, cpu: 1, mem_mb: 2048, step_timeout_ms: 300_000)
+    def initialize(recipe, client: Solari::Client.new, cpu: 1, mem_mb: 2048, step_timeout_ms: 300_000, envs: {}, setup: [])
       @recipe   = recipe
       @client   = client
       @cpu      = cpu
       @mem_mb   = mem_mb
       @timeout  = step_timeout_ms
+      @envs     = envs
+      @setup    = setup
     end
 
     def run
@@ -34,9 +38,14 @@ module DoesItRun
       started = Time.now
       cwd     = START_DIR
 
-      Solari::Sandbox.open(client: @client, cpu: @cpu, mem_mb: @mem_mb, timeout_ms: @timeout,
+      Solari::Sandbox.open(client: @client, cpu: @cpu, mem_mb: @mem_mb, timeout_ms: @timeout, envs: @envs,
                            metadata: { project: "does-it-run", recipe: @recipe.name }) do |sandbox|
         sandbox.sh("mkdir -p #{START_DIR}")
+
+        @setup.each do |command|
+          result = sandbox.sh("cd #{shell_quote(START_DIR)} && #{command}")
+          raise SetupError, "setup failed: #{command}\n#{result.stderr.strip[0, 300]}" unless result.exit_code.zero?
+        end
 
         @recipe.steps.each_with_index do |step, index|
           if halted?(results)

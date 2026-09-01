@@ -1,0 +1,8 @@
+# Does It Run checks this project against its own README.
+name: does-it-run
+
+# Ruby is not on a bare Debian image. Installing it is a fact about the machine,
+# not a defect in the docs, so it belongs here rather than in the graded steps.
+setup:
+  - apt-get update -qq
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ruby
